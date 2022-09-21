@@ -1,5 +1,7 @@
 module Main (main) where
 
+import System.Console.Haskeline
+
 type MatureTime = Int
 type InterestRate = Double
 type RateChangePerDay = Double
@@ -15,12 +17,10 @@ someData = [(4,1.1,3.0e-2),(8,1.2,2.5e-2),(13,1.4,2.6e-2),(26,1.6,2.3e-2),(52,1.
 
 main :: IO ()
 main = do
-{--
   billData <- getBillData weeksToMaturity
   print billData
   printData billData
---}
-  printData someData
+
 
 
 getBillData :: [MatureTime] -> IO( [BillData] )
@@ -30,34 +30,17 @@ getBillData matureTimes = do
 
 
 
-getBillDatum :: Int -> IO ( BillData )
-getBillDatum matTime = do
-  putStrLn ("For " ++ show matTime ++ "-week t-bill enter values for:")
-  putStrLn "Interest rate:"
-  intRate <- fmap read getLine :: IO (InterestRate)
-  putStrLn "Change in interest rate per day:"
-  dailyRateChange <- fmap read getLine :: IO (RateChangePerDay)
-  return (matTime, intRate, dailyRateChange)
+getBillDatum :: Int -> IO (BillData)
+getBillDatum matTime = do 
+  runInputT defaultSettings querry 
+    where querry = do outputStrLn ("For " ++ show matTime ++ "-week t-bill enter values for")
+                      Just inpt <- getInputLine "\nInterest rate:  "
+                      let intRate = read inpt :: Double
+                      Just inpt2 <- getInputLine "Change in interest rate per day:  "
+                      let dailyRateChange = read inpt2 :: Double
+                      return (matTime, intRate, dailyRateChange)
+                              
 
-
-
-getRates :: [Int] -> IO([(Int,Double)])
-getRates weeks = do
-  let noRates = pure [] :: IO([(Int, Double)])
-  foldr (\w rates -> (fmap (:) (getRate w)) <*> rates ) noRates weeks
-
-getRate :: Int -> IO((Int, Double))
-getRate period = do
-  putStrLn ("Enter the interest rate for a " ++ show period ++ "-week t-bill") 
-  r <- fmap read getLine :: IO(Double)
-  return (period, r)
- 
-printRates :: [(Int, Double)] -> IO()
-printRates theRates = do putStrLn "The current T-Bill rates are:\n"
-                         printEachRate theRates
-  where printEachRate [] = putStrLn ""
-        printEachRate ((w,r):moreRates) = do putStr (show w ++ "-week " ++ show r ++ "   ")
-                                             printEachRate moreRates
 
 printData :: [BillData] -> IO ()
 printData theData = do putStrLn "The current T-Bill interest rates and change in interest rates per day are:\n:"
@@ -77,4 +60,16 @@ interestWithReinvestment (weeks, intRate, deltaRate) reinvestWeeks = 100 * ( fac
          factorChangeAtMaturity = 0.01 * (7.0 * fromIntegral weeks * deltaRate ) *  ( fromIntegral weeks * 7.0 / 365.0 ) 
          factorForWholePeriods = foldr ( \n fact -> fact * (factorAtMaturity + n * factorChangeAtMaturity))  1 [0 .. wholePeriods -1] 
          factorForFracPeriods = ( (factorAtMaturity + wholePeriods * factorChangeAtMaturity - 1)* fracPeriod + 1)
-                                                                       
+                         
+
+tryHaskeline :: IO(String)
+tryHaskeline = do
+  runInputT defaultSettings querry
+    where querry = do
+            outputStr "\n\nEnter your name:  "
+            Just name <- getInputLine ""
+            return name
+            --outputStrLn ("Hello, " ++ name ++ ".")
+
+
+                                              
