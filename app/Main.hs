@@ -49,7 +49,17 @@ printData theData = do putStrLn "The current T-Bill interest rates and change in
   where printEachDatum [] = putStrLn "" 
         printEachDatum ((w, rate, deltaRate) : moreData) = do putStrLn (show w ++ "-week   " ++ show rate ++ "      " ++ show deltaRate)
                                                               printEachDatum moreData
-                                  
+
+intRateDiffTable :: [BillData] ->  [(MatureTime, [(MatureTime, InterestRate)])]
+intRateDiffTable billDataList = reverse $ getNextSetOfDiffs billDataList []
+  where getNextSetOfDiffs remainingData diffList
+          |(tail remainingData) == [] = diffList
+          |otherwise                  = getNextSetOfDiffs (tail remainingData) ((intRateDiffs remainingData) : diffList)
+
+intRateDiffs :: [BillData] -> (MatureTime, [(MatureTime, InterestRate)])
+intRateDiffs (billData : comparisonBillData) = (getWeeks billData, comparisons)
+  where getWeeks (matWeeks, _, _) = matWeeks 
+        comparisons = foldr ( \compareTo comps -> (getWeeks compareTo, diffInterestWithLongerBill billData compareTo) : comps ) [] comparisonBillData                                
 
 
 interestWithReinvestment:: BillData -> Int -> Double
@@ -60,7 +70,10 @@ interestWithReinvestment (weeks, intRate, deltaRate) reinvestWeeks = 100 * ( fac
          factorChangeAtMaturity = 0.01 * (7.0 * fromIntegral weeks * deltaRate ) *  ( fromIntegral weeks * 7.0 / 365.0 ) 
          factorForWholePeriods = foldr ( \n fact -> fact * (factorAtMaturity + n * factorChangeAtMaturity))  1 [0 .. wholePeriods -1] 
          factorForFracPeriods = ( (factorAtMaturity + wholePeriods * factorChangeAtMaturity - 1)* fracPeriod + 1)
-                         
+ 
+diffInterestWithLongerBill :: BillData -> BillData -> Double
+diffInterestWithLongerBill shortBillData (longWeeks, longIntRate, _) = interestWithReinvestment shortBillData longWeeks - longIntRate 
+                    
 
 tryHaskeline :: IO(String)
 tryHaskeline = do
